@@ -9,6 +9,7 @@ export default defineConfig({
       input: {
         index: fileURLToPath(new URL('index.html', import.meta.url)),
         scene: fileURLToPath(new URL('scene.html', import.meta.url)),
+        cook: fileURLToPath(new URL('cook.html', import.meta.url)),
       },
     },
   },

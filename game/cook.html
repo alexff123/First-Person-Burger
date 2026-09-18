@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D 烹饪循环 · 火候与 Juice</title>
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="scene"></canvas>
+
+      <!-- 顶栏：金币 / 连击 / 天数阶段 -->
+      <div id="hud-top">
+        <div class="pill">🪙 <span id="coins">0</span></div>
+        <div class="pill" id="combo"></div>
+        <div class="pill"><span id="hud-day">第 1 天</span> · <span id="hud-phase">采购</span></div>
+      </div>
+
+      <!-- 订单栏 -->
+      <div id="orders">
+        <div class="order-card">
+          <div class="order-title">当前订单</div>
+          <div class="order-dish" id="order-dish">土豆片 ×1</div>
+          <div class="order-status" id="order-status">待制作</div>
+        </div>
+      </div>
+
+      <!-- 火候条 -->
+      <div id="heatbar">
+        <div id="sweet-zone"></div>
+        <div id="heat-fill"></div>
+        <div id="heat-label">火候 <span id="heat-num">0</span>%</div>
+      </div>
+
+      <div id="vignette"></div>
+      <div id="fx-layer"></div>
+      <div id="combo-pop"></div>
+
+      <div class="hud-tip">点土豆 = 切片入锅 ｜ 火候进绿区时点锅 = 完美出锅</div>
+      <button id="btn-endday" class="hud-btn">打烊 → 次日</button>
+    </div>
+    <script type="module" src="/src/cook-main.ts"></script>
+  </body>
+</html>

@@ -25,19 +25,95 @@ button {
   background: var(--orange); color: #fff; border: 2px solid var(--brown);
   border-radius: 12px; padding: 10px 14px;
 }
-button:active { transform: translateY(2px); }
 .log-wrap { background: #fff; border: 2px solid var(--brown); border-radius: 16px; padding: 8px; }
 .log { height: 280px; overflow-y: auto; font-size: 13px; line-height: 1.6; }
 .log-line { padding: 2px 4px; border-bottom: 1px dashed #eee; }
 .hint { font-size: 12px; color: #8a6d3b; }
 
-/* ---- 切土豆 3D Demo 专属 ---- */
+/* ---- 3D 场景 ---- */
 html, body { height: 100%; }
-.stage { position: fixed; inset: 0; }
+#stage { position: fixed; inset: 0; }
 #scene { display: block; width: 100vw; height: 100vh; touch-action: none; }
 .hud-tip {
-  position: fixed; left: 12px; bottom: 12px;
+  position: fixed; left: 12px; bottom: 22px;
   font: 700 14px/1.4 'Baloo 2', system-ui; color: var(--brown);
   background: rgba(255, 255, 255, 0.82); border: 2px solid var(--brown);
   border-radius: 12px; padding: 8px 12px;
+}
+
+/* ---- 烹饪 HUD ---- */
+#hud-top {
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 10px; z-index: 5;
+}
+.pill {
+  font: 700 15px/1 'Baloo 2', system-ui; color: var(--brown);
+  background: rgba(255, 255, 255, 0.88); border: 2px solid var(--brown);
+  border-radius: 999px; padding: 8px 14px;
+}
+#combo { color: #e2670f; }
+#combo:empty { display: none; }
+
+#orders { position: fixed; left: 12px; top: 84px; z-index: 5; }
+.order-card {
+  width: 172px; background: rgba(255, 255, 255, 0.92);
+  border: 3px solid var(--brown); border-radius: 16px; padding: 12px;
+  box-shadow: 0 6px 0 rgba(74, 53, 40, 0.22);
+}
+.order-title { font-size: 12px; opacity: 0.6; }
+.order-dish { font-weight: 700; font-size: 16px; margin: 4px 0 8px; }
+.order-status {
+  display: inline-block; font-size: 12px; font-weight: 700;
+  padding: 3px 10px; border-radius: 999px; background: #eee;
+}
+.order-status.cooking { background: #ffe0b3; color: #a05a00; }
+.order-status.prepared { background: #d7f0ff; color: #0b6a9c; }
+.order-status.perfect { background: #c9f7d4; color: #1a7f37; }
+.order-status.burnt { background: #ffd0d0; color: #b00020; }
+
+#heatbar {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  width: min(560px, 72vw); height: 26px; z-index: 5;
+  background: rgba(255, 255, 255, 0.88); border: 3px solid var(--brown);
+  border-radius: 999px; overflow: hidden; opacity: 0.45;
+  transition: opacity 0.2s, box-shadow 0.2s;
+}
+#heatbar.active { opacity: 1; box-shadow: 0 0 22px rgba(255, 159, 69, 0.9); }
+#sweet-zone {
+  position: absolute; top: 0; bottom: 0; left: 60%; width: 20%;
+  background: rgba(111, 207, 151, 0.35);
+  border-left: 2px dashed #2f9e5a; border-right: 2px dashed #2f9e5a;
+}
+#heat-fill {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+  background: linear-gradient(90deg, #6fcf97, #ff9f45 70%, #ff5e5e);
+}
+#heat-fill.sweet { background: #35c46a; }
+#heat-label {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font: 700 13px/1 'Baloo 2', system-ui; color: var(--brown); text-shadow: 0 0 3px #fff;
+}
+
+#vignette {
+  position: fixed; inset: 0; pointer-events: none; opacity: 0; z-index: 8;
+  background: radial-gradient(ellipse at center, transparent 38%, rgba(70, 12, 0, 0.85) 100%);
+}
+#fx-layer { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 9; }
+.coin {
+  position: absolute; left: 0; top: 0; width: 26px; height: 26px; display: none;
+  border-radius: 50%; border: 2px solid #a86a00;
+  background: radial-gradient(circle at 35% 30%, #ffe9a8, #ffb300 70%, #c47f00);
+  box-shadow: 0 0 8px rgba(255, 180, 0, 0.9);
+}
+#combo-pop {
+  position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%);
+  font: 800 40px/1 'Baloo 2', system-ui; color: #ff7a00; opacity: 0;
+  text-shadow: 0 3px 0 #fff, 0 0 18px rgba(255, 140, 0, 0.8);
+  pointer-events: none; z-index: 10;
+}
+.hud-btn {
+  position: fixed; right: 12px; bottom: 24px; z-index: 6;
+  font: 700 14px/1 'Baloo 2', system-ui; cursor: pointer;
+  background: var(--mint); color: #fff; border: 3px solid var(--brown);
+  border-radius: 12px; padding: 10px 14px;
 }

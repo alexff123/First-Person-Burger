@@ -8,3 +8,5 @@ smoke*.mjs
 smoke_out.txt
 build_log.txt
 git_log*.txt
+health*.txt
+git_p*.txt

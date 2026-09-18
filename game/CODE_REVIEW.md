@@ -84,3 +84,50 @@
 - `npm run build`：tsc 0 错误；vite 多入口打包 `index.html` + `scene.html` 成功（`scene` 包 549 kB / gzip 142 kB，仅为 Three.js 体积警告）。
 - WebGL 运行时需浏览器，无头环境无法自动验证；代码为标准 Three.js + cannon-es 用法。
 
+---
+
+# 代码审查 · 烹饪循环与 Juice（Phase 4）
+
+审查角色：代码审查专家 ｜ 依据：《性能红线与防卡顿规范》
+**本阶段重点：状态机与物理引擎的耦合审查。**
+
+## 结论：通过（PASS）
+
+### 0. 核心约束核验（状态机不得直接操作 3D 网格）
+
+检索 `src/`：引用 `three` / `cannon-es` / `THREE.` / `CANNON.` 的文件**只有** `render/ParticleSystem.ts` 与 `render/PhysicsScene.ts`。
+`core/`（EventBus / StateMachine / Ticker）与 `game/`（events / BusinessDayMachine / CookingSystem / DayController）**零 3D 依赖**；`game/` 内亦无任何 `render/`、`ObjectPool`、`PhysicsScene` 引用。
+
+| 约束 | 结果 | 证据 |
+| --- | --- | --- |
+| 状态机不碰 3D 网格 | 通过 | `BusinessDayMachine` 只 import `StateMachine`/`EventBus`/`events`，无 THREE |
+| 状态机只被事件驱动 | 通过 | `DayController` 订阅 `potato:inPot`→`advanceTo('cooking')`、`dish:served/burnt`→`advanceTo('pricing')` |
+| 物理层只发意图、不判规则 | 通过 | `PhysicsScene` 发 `potato:cut`/`dish:prepared`/`potato:inPot`/`pot:clicked`，规则在 `CookingSystem` |
+| 玩法层不依赖渲染 | 通过 | `CookingSystem` 只用事件总线收发，纯数据 |
+| HUD/音效/特效仅订阅 | 通过 | `Hud`/`Juice`/`AudioManager` 只 `bus.on(...)`，不反向调用系统 |
+
+数据流单向：**输入(物理层) → 意图事件 → 玩法系统算结果 → 结果事件 → 表现层(视图/HUD/音效/特效)**。
+
+### 1. 红线核对（本阶段适用项）
+
+| 红线 | 结果 | 说明 |
+| --- | --- | --- |
+| 固定步长 + rAF 单循环 | 通过 | 新增 `Ticker` 统一 rAF，物理固定 1/60；物理/烹饪共享同一 tick |
+| 禁止 setInterval 跑游戏循环 | 通过 | 循环全部走 `Ticker`；仅 HUD 文本复位用 `setTimeout`（非循环） |
+| 热路径禁止 new 对象 | 通过 | 火候 emitted 仅在整数变化时（≤100 次/锅），非每帧；`Ticker` 回调零分配 |
+| 对象池化 | 通过 | 土豆/碎块/粒子复用；**金币 DOM 元素池(24)**；**音频通道池(上限 12)** |
+| 粒子 InstancedMesh | 通过 | 果汁/金光/黑烟各一个 InstancedMesh，共 3 次提交 |
+| 禁止未释放资源 | 通过 | 碎块 4s 回收；`dispose()` 释放 renderer 与监听 |
+
+### 2. 跟进项
+
+1. Three.js 主包仍 ~553 kB（gzip 144 kB）；已由 Rollup 自动拆出 events/FSM 共享块，后续可 `manualChunks` 进一步分离 three。
+2. `PhysicsScene` 订阅了 `cooking:*` 做视觉；这是"视图响应领域事件"，与"状态机操作网格"正交，符合约束。若未来视觉逻辑变厚，抽出独立 `PotView`。
+3. 音效通道池对并发发声封顶 12，超限丢弃；如需不丢音可在池满时抢占最早通道。
+
+### 3. 验证记录
+
+- `npm run build`：tsc 0 错误；三入口 `index/scene/cook` 打包成功（Rollup 自动拆包，24 模块）。
+- dev 服务器：`cook.html` / `scene.html` / `index.html` / `src/cook-main.ts` 均 200。
+- WebGL/WebAudio 运行时需浏览器，无头不可自动验证。
+

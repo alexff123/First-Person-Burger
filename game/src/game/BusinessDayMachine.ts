@@ -65,6 +65,15 @@ export class BusinessDayMachine {
     }
   }
 
+  /** 事件驱动：仅在合法时跳转到目标阶段；非法（乱序事件）直接忽略并返回 false。 */
+  advanceTo(target: DayState): boolean {
+    if (this.fsm.current === target) return true;
+    if (!this.fsm.canGo(target)) return false;
+    if (this.fsm.current === 'closing' && target === 'procurement') this.day += 1;
+    this.transitionTo(target);
+    return true;
+  }
+
   /** 内部：执行 FSM 转移并广播 phase:changed（携带 from，满足可追踪）。 */
   private transitionTo(to: DayState): void {
     const from = this.fsm.current;
