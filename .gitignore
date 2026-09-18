@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.workbuddy/
+*.log
+env_check*.txt
+smoke*.ts
+smoke*.mjs
+smoke_out.txt
+build_log.txt
+git_log*.txt

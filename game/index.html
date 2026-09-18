@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D 烹饪经营 · 灰盒逻辑验证</title>
+  </head>
+  <body>
+    <main class="app">
+      <h1>🍳 营业日状态机 · 灰盒 Demo</h1>
+      <section class="hud">
+        <div>天数 <span id="day">-</span></div>
+        <div>当前阶段 <span id="state" class="state">idle</span></div>
+      </section>
+      <section class="controls">
+        <button id="btn-step">▶ 推进一阶段</button>
+        <button id="btn-auto">⏯ 自动跑一天</button>
+        <button id="btn-angry">🔥 模拟顾客暴走</button>
+      </section>
+      <section class="log-wrap">
+        <div id="log" class="log"></div>
+      </section>
+      <p class="hint">事件总线解耦演示：UI 与「顾客AI / 经济」订阅者只监听事件，不持有彼此引用。</p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

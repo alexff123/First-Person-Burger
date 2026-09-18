@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 520" font-family="'Baloo 2','ZCOOL KuaiLe',sans-serif">
+  <rect width="760" height="520" fill="#FFF6E5"/>
+  <text x="380" y="38" font-size="22" font-weight="700" fill="#4A3528" text-anchor="middle">核心循环状态机 · 营业日</text>
+
+  <!-- 节点 -->
+  <g font-size="14" font-weight="700" fill="#4A3528">
+    <rect x="60" y="90" width="130" height="64" rx="14" fill="#FFE08A" stroke="#4A3528" stroke-width="2"/>
+    <text x="125" y="118" text-anchor="middle">① 采购</text>
+    <text x="125" y="138" text-anchor="middle" font-size="11" font-weight="400">低买 · 库存</text>
+
+    <rect x="315" y="90" width="130" height="64" rx="14" fill="#FF9F45" stroke="#4A3528" stroke-width="2"/>
+    <text x="380" y="118" text-anchor="middle">② 烹饪</text>
+    <text x="380" y="138" text-anchor="middle" font-size="11" font-weight="400">物理 + QTE</text>
+
+    <rect x="570" y="90" width="130" height="64" rx="14" fill="#6FCF97" stroke="#4A3528" stroke-width="2"/>
+    <text x="635" y="118" text-anchor="middle">③ 定价售卖</text>
+    <text x="635" y="138" text-anchor="middle" font-size="11" font-weight="400">结算金币</text>
+
+    <rect x="315" y="230" width="130" height="64" rx="14" fill="#BFD9FF" stroke="#4A3528" stroke-width="2"/>
+    <text x="380" y="258" text-anchor="middle">④ 升级/事件</text>
+    <text x="380" y="278" text-anchor="middle" font-size="11" font-weight="400">天赋 · Roguelike</text>
+
+    <rect x="315" y="370" width="130" height="64" rx="14" fill="#FFC2C2" stroke="#4A3528" stroke-width="2"/>
+    <text x="380" y="398" text-anchor="middle">⑤ 打烊结算</text>
+    <text x="380" y="418" text-anchor="middle" font-size="11" font-weight="400">日报 · 次日</text>
+  </g>
+
+  <!-- 连线 -->
+  <g stroke="#4A3528" stroke-width="2" fill="none" marker-end="url(#b)">
+    <line x1="190" y1="122" x2="313" y2="122"/>
+    <line x1="445" y1="122" x2="568" y2="122"/>
+    <path d="M635,154 C635,200 470,200 445,228"/>
+    <line x1="380" y1="294" x2="380" y2="368"/>
+    <path d="M315,402 C200,402 200,122 190,122"/>
+  </g>
+  <defs>
+    <marker id="b" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4A3528"/>
+    </marker>
+  </defs>
+
+  <text x="380" y="478" font-size="12" fill="#8a6d3b" text-anchor="middle">闭环：打烊 → 次日重新进入采购，难度与资源随升级滚动</text>
+</svg>

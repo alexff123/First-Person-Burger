@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560" font-family="'Baloo 2','ZCOOL KuaiLe',sans-serif">
+  <rect width="760" height="560" fill="#FFF6E5"/>
+  <text x="380" y="38" font-size="22" font-weight="700" fill="#4A3528" text-anchor="middle">系统架构分层图 · Three.js + cannon-es</text>
+
+  <!-- 表现层 -->
+  <rect x="40" y="70" width="680" height="90" rx="16" fill="#FFE08A" stroke="#4A3528" stroke-width="2"/>
+  <text x="64" y="98" font-size="16" font-weight="700" fill="#4A3528">表现层 Presentation</text>
+  <text x="64" y="122" font-size="13" fill="#4A3528">Three.js 场景渲染  ·  粒子/锅气/油烟  ·  后处理  ·  DOM HUD 浮层</text>
+  <text x="64" y="144" font-size="12" fill="#8a6d3b">只负责"画"与"收输入"，不含规则</text>
+
+  <!-- 游戏逻辑层 -->
+  <rect x="40" y="180" width="680" height="90" rx="16" fill="#FF9F45" stroke="#4A3528" stroke-width="2"/>
+  <text x="64" y="208" font-size="16" font-weight="700" fill="#4A3528">游戏逻辑层 Game Logic</text>
+  <text x="64" y="232" font-size="13" fill="#4A3528">核心循环状态机  ·  规则判定(火候/QTE/定价)  ·  系统调度(ECS/模块)</text>
+  <text x="64" y="254" font-size="12" fill="#5a3210">唯一裁决者：品质、成交、客流在此定</text>
+
+  <!-- 系统服务层 -->
+  <rect x="40" y="290" width="680" height="130" rx="16" fill="#6FCF97" stroke="#4A3528" stroke-width="2"/>
+  <text x="64" y="318" font-size="16" font-weight="700" fill="#4A3528">系统服务层 Services</text>
+  <text x="64" y="342" font-size="13" fill="#4A3528">经济系统 · 顾客AI(寻路+耐心) · 库存状态机 · 物理世界</text>
+  <text x="64" y="364" font-size="13" fill="#4A3528">事件/Roguelike(天气/评论家/短缺) · 存档</text>
+  <text x="64" y="386" font-size="12" fill="#2e5a3e">无状态/弱状态服务，可独立单测</text>
+
+  <!-- 数据层 -->
+  <rect x="40" y="440" width="680" height="90" rx="16" fill="#BFD9FF" stroke="#4A3528" stroke-width="2"/>
+  <text x="64" y="468" font-size="16" font-weight="700" fill="#4A3528">数据层 Data</text>
+  <text x="64" y="492" font-size="13" fill="#4A3528">配置表(JSON/TS) · 本地存档(IndexedDB) · 云端存档(可选)</text>
+  <text x="64" y="514" font-size="12" fill="#3a4a6a">配置与存档分离，云端仅做跨设备同步</text>
+
+  <!-- 连线 -->
+  <line x1="380" y1="160" x2="380" y2="180" stroke="#4A3528" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="380" y1="270" x2="380" y2="290" stroke="#4A3528" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="380" y1="420" x2="380" y2="440" stroke="#4A3528" stroke-width="2" marker-end="url(#a)"/>
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4A3528"/>
+    </marker>
+  </defs>
+</svg>
