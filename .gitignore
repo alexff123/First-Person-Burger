@@ -1,7 +1,14 @@
-node_modules/
+﻿node_modules/
 dist/
 .workbuddy/
 *.log
+_probe/
+probe*.log
+calc.log
+verify_build.log
+tsc_files.log
+git_state.txt
+tree.txt
 env_check*.txt
 smoke*.ts
 smoke*.mjs
