@@ -27,6 +27,17 @@ export class ObjectPool<T> {
     this.free.push(obj);
   }
 
+  /**
+   * 取出池中当前全部空闲对象并清空池（不调用 reset）。
+   *
+   * 用途：宿主需要整体换掉池内容时（例如换食材要重建不同外观的网格），
+   * 用它把旧对象捞出来统一 dispose，避免 GPU 资源泄漏。
+   * 注意：已被 acquire() 拿走、尚未 release() 的对象不在这里，调用方需自行处理。
+   */
+  drain(): T[] {
+    return this.free.splice(0, this.free.length);
+  }
+
   get available(): number {
     return this.free.length;
   }

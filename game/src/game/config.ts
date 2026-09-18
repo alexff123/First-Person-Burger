@@ -29,7 +29,32 @@ export const RAW_REVENUE_MUL = 0.2; // 生食：贱卖
 export const OVER_PENALTY_MUL = 0.5; // 过火：倒赔顾客
 export const BURNT_PENALTY_MUL = 0.8; // 焦糊：重罚
 
-/** 食材：决定火候曲线与价格成本 */
+/**
+ * 食材外观（灰盒视觉标识，纯表现参数，不参与任何判定）
+ *
+ * 定位：这是"数值层与表现层之间的唯一契约"。
+ *   - 玩法层（CookingSystem / EconomySystem）只读 heatRate/price/cost 等数值字段；
+ *   - 表现层（PhysicsScene）只读这里的配色与几何，用来回答"玩家选的是哪种料"。
+ * 之所以放在 config.ts 而非 render/：外观跟着食材走，是食材的属性；
+ * 放在渲染层会造成"数值改了外观没跟上"的漂移（本阶段就是修这个 bug）。
+ */
+export interface IngredientLook {
+  /** 主体颜色（网格 + 锅内内容物） */
+  color: number;
+  /**
+   * 几何缩放：x 长 / y 高 / z 宽，作用在 SphereGeometry(r) 上。
+   * 土豆=椭球、豆腐=方墩、和牛=扁片，全靠这三个数区分（不做真实建模，守灰盒约束）。
+   */
+  scale: readonly [number, number, number];
+  /** 碎块尺寸倍率：和牛切片薄、豆腐块厚 */
+  chunkRadius: number;
+  /** 切料时的汁水/碎屑粒子颜色 */
+  juiceColor: number;
+  /** 粗糙度：豆腐哑光、和牛油润 */
+  roughness: number;
+}
+
+/** 食材：决定火候曲线与价格成本，以及灰盒外观 */
 export interface Ingredient {
   id: string;
   name: string;
@@ -41,17 +66,46 @@ export interface Ingredient {
   sweetSpan: number;
   /** 基础售价 */
   price: number;
-  /** 单次采购成本（每次出锅消耗一份） */
+  /** 单次采购成本（每次出锅消耗一份）——仅作默认基准价，实际以当日市价为准 */
   cost: number;
+  /** 灰盒外观（表现层专用） */
+  look: IngredientLook;
 }
 
 export const INGREDIENTS: readonly Ingredient[] = [
-  // 土豆：基准菜。5 秒烧完，甜区 1 秒。新手村。
-  { id: 'potato', name: '土豆', heatRate: 20, sweetCenter: 70, sweetSpan: 20, price: 30, cost: 8 },
-  // 豆腐：慢火 + 宽窗，容错最高，但也不值钱。
-  { id: 'tofu', name: '豆腐', heatRate: 16, sweetCenter: 65, sweetSpan: 26, price: 24, cost: 6 },
-  // 和牛：火快、窗口窄到 0.4 秒，糊一次赔到肉疼。
-  { id: 'wagyu', name: '和牛', heatRate: 30, sweetCenter: 72, sweetSpan: 12, price: 90, cost: 34 },
+  // 土豆：基准菜。5 秒烧完，甜区 1 秒。新手村。外观=黄褐椭球。
+  {
+    id: 'potato',
+    name: '土豆',
+    heatRate: 20,
+    sweetCenter: 70,
+    sweetSpan: 20,
+    price: 30,
+    cost: 8,
+    look: { color: 0xc8a165, scale: [1.2, 0.85, 1.0], chunkRadius: 0.28, juiceColor: 0x9bd64a, roughness: 0.9 },
+  },
+  // 豆腐：慢火 + 宽窗，容错最高，但也不值钱。外观=米白方墩（scale 三轴接近，看着方正）。
+  {
+    id: 'tofu',
+    name: '豆腐',
+    heatRate: 16,
+    sweetCenter: 65,
+    sweetSpan: 26,
+    price: 24,
+    cost: 6,
+    look: { color: 0xf2ece0, scale: [1.15, 1.15, 1.0], chunkRadius: 0.32, juiceColor: 0xe8e0d0, roughness: 1.0 },
+  },
+  // 和牛：火快、窗口窄到 0.4 秒，糊一次赔到肉疼。外观=暗红扁片（y 压到 0.45）。
+  {
+    id: 'wagyu',
+    name: '和牛',
+    heatRate: 30,
+    sweetCenter: 72,
+    sweetSpan: 12,
+    price: 90,
+    cost: 34,
+    look: { color: 0x8b3a3a, scale: [1.35, 0.45, 1.1], chunkRadius: 0.22, juiceColor: 0xd94f4f, roughness: 0.55 },
+  },
 ];
 
 /** 灶台等级：越高级越赚，也越难控 */
@@ -95,6 +149,8 @@ export interface CookParams {
   price: number;
   /** 采购成本 */
   cost: number;
+  /** 灰盒外观（表现层用，玩法层忽略） */
+  look: IngredientLook;
 }
 
 /**
@@ -115,6 +171,7 @@ export function resolveCookParams(ingredientId: string, stoveLevel: number): Coo
     sweetMax: Math.min(BURN_AT, ing.sweetCenter + half),
     price: Math.round(ing.price * stove.priceMul),
     cost: ing.cost,
+    look: ing.look,
   };
 }
 

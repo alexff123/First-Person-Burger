@@ -12,6 +12,7 @@ export class ParticleSystem {
   private readonly vel: THREE.Vector3[];
   private readonly life: Float32Array;
   private readonly dummy = new THREE.Object3D();
+  private readonly mat: THREE.MeshBasicMaterial;
   private cursor = 0;
 
   constructor(max = 300, color = 0x9bd64a) {
@@ -22,6 +23,7 @@ export class ParticleSystem {
 
     const geo = new THREE.SphereGeometry(0.08, 6, 6);
     const mat = new THREE.MeshBasicMaterial({ color });
+    this.mat = mat;
     this.mesh = new THREE.InstancedMesh(geo, mat, max);
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false;
@@ -36,6 +38,11 @@ export class ParticleSystem {
       this.mesh.setMatrixAt(i, this.dummy.matrix);
     }
     this.mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  /** 换粒子颜色（换食材时用：土豆的绿色汁水 vs 和牛的血红汁水）。 */
+  setColor(color: number): void {
+    this.mat.color.set(color);
   }
 
   /** 在 origin 处爆发 count 个粒子。 */

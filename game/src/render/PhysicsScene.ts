@@ -6,14 +6,15 @@ import type { Ticker } from '../core/Ticker';
 import type { EventBus } from '../core/EventBus';
 import { Events } from '../game/events';
 import type { GameEvents } from '../game/events';
-import type { Grade } from '../game/config';
+import { getIngredient } from '../game/config';
+import type { Grade, IngredientLook } from '../game/config';
 
-/** 一个土豆（完整或碎块）：可视化网格 + 物理刚体。 */
+/** 一个待处理的食材（完整或碎块）：可视化网格 + 物理刚体。 */
 interface Potato {
   mesh: THREE.Mesh;
   body: CANNON.Body;
   active: boolean;
-  dieAt: number; // >0 表示碎块回收时间戳（秒）；0 表示常驻完整土豆
+  dieAt: number; // >0 表示碎块回收时间戳（秒）；0 表示常驻完整食材
 }
 
 /**
@@ -39,17 +40,24 @@ export class PhysicsScene {
   });
   private readonly contents: THREE.Mesh;
   private readonly basePotColor = new THREE.Color(0x555a66);
-  private readonly baseFoodColor = new THREE.Color(0xc8a165);
+  private readonly baseFoodColor = new THREE.Color(0xc8a165); // 随食材外观变化
   private readonly burntColor = new THREE.Color(0x2b1a10);
   private readonly hotColor = new THREE.Color(0xff5e2b);
 
-  private readonly wholePool: ObjectPool<Potato>;
-  private readonly chunkPool: ObjectPool<Potato>;
+  private wholePool: ObjectPool<Potato>;
+  private chunkPool: ObjectPool<Potato>;
   private readonly active: Potato[] = [];
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
   private readonly fixedDt = 1 / 60;
   private acc = 0;
+
+  /**
+   * 当前食材外观（默认土豆）。
+   * 由 `ingredient:changed` 事件驱动 —— 表现层只订阅、不判断，符合物理层不干预逻辑的架构。
+   * 它是"下一次重建对象池"所用的外观模板。
+   */
+  private look: IngredientLook = getIngredient('potato').look;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -115,7 +123,11 @@ export class PhysicsScene {
     this.scene.add(this.particles.mesh, this.goldFx.mesh, this.smokeFx.mesh);
 
     this.wholePool = new ObjectPool<Potato>(() => this.makePotato(0.8), (p) => this.resetPotato(p), 8);
-    this.chunkPool = new ObjectPool<Potato>(() => this.makePotato(0.28), (p) => this.resetPotato(p), 48);
+    this.chunkPool = new ObjectPool<Potato>(
+      () => this.makePotato(this.look.chunkRadius),
+      (p) => this.resetPotato(p),
+      48,
+    );
 
     // 订阅玩法事件，只改视觉（不碰规则）
     this.bus.on(Events.CookingStart, () => {
@@ -124,14 +136,28 @@ export class PhysicsScene {
     this.bus.on(Events.CookingProgress, ({ heat }) => this.applyHeat(heat));
     this.bus.on(Events.DishCooked, ({ grade }) => this.onCooked(grade));
 
+    // 换食材 = 换外观：重建对象池（否则切出来的碎块还是旧食材的颜色 —— 本轮要修的 bug）
+    this.bus.on(Events.IngredientChanged, ({ id }) => {
+      this.look = getIngredient(id).look;
+      this.baseFoodColor.set(this.look.color);
+      this.particles.setColor(this.look.juiceColor);
+      this.potMat.color.copy(this.basePotColor); // 顺手把上一锅的焦黑洗掉
+      this.refreshInPotContents();
+      this.rebuildPools();
+    });
+
     canvas.addEventListener('pointerdown', this.onPointerDown);
     ticker.add((dt) => this.update(dt));
   }
 
   private makePotato(radius: number): Potato {
     const geo = new THREE.SphereGeometry(radius, 16, 12);
-    geo.scale(1.2, 0.85, 1);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xc8a165, roughness: 0.9 }));
+    const [sx, sy, sz] = this.look.scale;
+    geo.scale(sx, sy, sz);
+    const mesh = new THREE.Mesh(
+      geo,
+      new THREE.MeshStandardMaterial({ color: this.look.color, roughness: this.look.roughness }),
+    );
     mesh.castShadow = true;
     const body = new CANNON.Body({ mass: radius, shape: new CANNON.Sphere(radius) });
     return { mesh, body, active: false, dieAt: 0 };
@@ -192,6 +218,53 @@ export class PhysicsScene {
     if (idx >= 0) this.active.splice(idx, 1);
   }
 
+  /**
+   * 换食材时重建两个对象池。
+   *
+   * 为什么必须重建：ObjectPool 的工厂函数只在池空时调用，预创建的 8 个整料 + 48 个碎块
+   * 是用旧外观造的，若不重建，选豆腐后会切出一堆"土豆色碎块"（就是本轮要修的 bug）。
+   * 代价：换食材瞬间 56 次几何体创建 —— 这是玩家点击按钮触发的低频操作，不在热路径上。
+   */
+  private rebuildPools(): void {
+    if (this.active.length > 0) {
+      // 已在场的物体直接收走，避免新旧外观混在一起看着像 bug
+      for (const p of this.active) {
+        this.scene.remove(p.mesh);
+        this.world.removeBody(p.body);
+        p.mesh.geometry.dispose();
+        (p.mesh.material as THREE.Material).dispose();
+      }
+      this.active.length = 0;
+    }
+    this.disposePool(this.wholePool);
+    this.disposePool(this.chunkPool);
+
+    this.wholePool = new ObjectPool<Potato>(() => this.makePotato(0.8), (p) => this.resetPotato(p), 8);
+    this.chunkPool = new ObjectPool<Potato>(
+      () => this.makePotato(this.look.chunkRadius),
+      (p) => this.resetPotato(p),
+      48,
+    );
+    this.refill();
+  }
+
+  /** 释放池内所有网格的 GPU 资源（换外观时旧几何体不再需要）。 */
+  private disposePool(pool: ObjectPool<Potato>): void {
+    for (const p of pool.drain()) {
+      p.mesh.geometry.dispose();
+      (p.mesh.material as THREE.Material).dispose();
+    }
+  }
+
+  /** 锅内内容物跟随外观表：颜色 + 形状（扁片的和牛在锅里就是扁的）。 */
+  private refreshInPotContents(): void {
+    const [sx, sy, sz] = this.look.scale;
+    this.contents.scale.set(sx * 0.85, sy * 0.85, sz * 0.85);
+    const mat = this.contents.material as THREE.MeshStandardMaterial;
+    mat.color.set(this.look.color);
+    mat.roughness = this.look.roughness;
+  }
+
   private applyHeat(heat: number): void {
     const t = Math.min(1, heat / 100);
     this.potMat.color.copy(this.basePotColor).lerp(this.hotColor, t * 0.75);
@@ -227,10 +300,10 @@ export class PhysicsScene {
     this.contents.visible = false;
     foodMat.color.copy(this.baseFoodColor);
     if (grade === 'perfect' || grade === 'raw') this.potMat.color.copy(this.basePotColor);
-    this.refill(); // 补一个新土豆，保证循环不断
+    this.refill(); // 补一份新食材，保证循环不断
   }
 
-  /** 在锅旁补一个新的完整土豆。 */
+  /** 在锅旁补一份新的完整食材。 */
   private refill(): void {
     this.spawnWhole((Math.random() - 0.5) * 6, 2.5, 1 + Math.random() * 2);
   }
