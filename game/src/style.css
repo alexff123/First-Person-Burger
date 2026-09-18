@@ -30,3 +30,14 @@ button:active { transform: translateY(2px); }
 .log { height: 280px; overflow-y: auto; font-size: 13px; line-height: 1.6; }
 .log-line { padding: 2px 4px; border-bottom: 1px dashed #eee; }
 .hint { font-size: 12px; color: #8a6d3b; }
+
+/* ---- 切土豆 3D Demo 专属 ---- */
+html, body { height: 100%; }
+.stage { position: fixed; inset: 0; }
+#scene { display: block; width: 100vw; height: 100vh; touch-action: none; }
+.hud-tip {
+  position: fixed; left: 12px; bottom: 12px;
+  font: 700 14px/1.4 'Baloo 2', system-ui; color: var(--brown);
+  background: rgba(255, 255, 255, 0.82); border: 2px solid var(--brown);
+  border-radius: 12px; padding: 8px 12px;
+}
