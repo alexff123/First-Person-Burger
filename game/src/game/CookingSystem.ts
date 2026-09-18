@@ -1,96 +1,134 @@
 import type { EventBus } from '../core/EventBus';
 import { Events } from './events';
 import type { GameEvents } from './events';
+import { BURN_AT, gradeOf, qualityOf, resolveCookParams } from './config';
+import type { CookParams, Grade } from './config';
 
 /**
  * 烹饪系统（玩法逻辑，纯数据，绝不接触 3D 网格）
- * 订阅事件总线：土豆入锅 → 起锅加热 → 广播火候；点锅 → 出锅判定；超时 → 焦糊。
- * 连击 / 金币也在这里结算，结果一律广播出去，由 HUD / 音效 / 特效自行响应。
+ *
+ * 职责（严格限定）：
+ *   1. 按「食材 × 灶台」解算的速率推进火候；
+ *   2. 判定四档位（生食 / 完美 / 过火 / 焦糊）与质量分；
+ *   3. 广播 cooking:* 与 dish:cooked。
+ *
+ * 明确不做：
+ *   - 不算金币、不管连击倍率、不碰成本 → 全部交给 DayController + EconomySystem 结算；
+ *   - 不直接调用任何其他模块，只通过事件总线收发。
+ *
+ * 档位阈值 / 速率全部来自 config.ts，本文件无魔法数字。
  */
 export class CookingSystem {
-  readonly sweetMin = 60;
-  readonly sweetMax = 80;
-  private readonly heatRate = 20; // 每秒火候增量
+  /** 当前一锅的实参快照（入锅时解算；烹饪中不随灶台/食材切换而变，避免中途变卦） */
+  private params: CookParams = resolveCookParams('potato', 1);
+  private ingredientId = 'potato';
+  private stoveLevel = 1;
+
   private heat = 0;
   private cooking = false;
-  private combo = 0;
-  private coins = 0;
+  /** 上次广播时的火候整数值，用于抑制重复事件（单锅最多 100 次） */
   private lastHeatInt = -1;
+  private lastGrade: Grade = 'raw';
 
   constructor(private readonly bus: EventBus<GameEvents>) {
-    bus.on(Events.PotatoInPot, () => this.startCooking());
-    bus.on(Events.PotClicked, () => this.tryServe());
+    bus.on(Events.PotatoInPot, () => this.start());
+    bus.on(Events.PotClicked, () => this.serve());
+    // 食材 / 灶台切换只记录，下次入锅才生效（烹饪中换灶不符合直觉，直接排队到下一锅）
+    bus.on(Events.StoveChanged, ({ level }) => {
+      this.stoveLevel = level;
+    });
+    bus.on(Events.IngredientChanged, ({ id }) => {
+      this.ingredientId = id;
+    });
+  }
+
+  get isCooking(): boolean {
+    return this.cooking;
   }
 
   get heatValue(): number {
     return this.heat;
   }
-  get isCooking(): boolean {
-    return this.cooking;
-  }
-  get coinTotal(): number {
-    return this.coins;
+
+  /** 当前甜区（供调试/测试读取，UI 一律走事件） */
+  get sweetRange(): { min: number; max: number } {
+    return { min: this.params.sweetMin, max: this.params.sweetMax };
   }
 
-  private startCooking(): void {
+  private start(): void {
+    // 入锅瞬间快照参数：本锅的速率与甜区就此锁定
+    this.params = resolveCookParams(this.ingredientId, this.stoveLevel);
     this.cooking = true;
     this.heat = 0;
     this.lastHeatInt = -1;
-    this.bus.emit(Events.CookingStart, { dish: '土豆片' });
-    this.bus.emit(Events.CookingProgress, { heat: 0, sweetMin: this.sweetMin, sweetMax: this.sweetMax });
+    this.lastGrade = 'raw';
+
+    this.bus.emit(Events.CookingStart, {
+      dish: this.params.dish,
+      ingredientId: this.params.ingredientId,
+      heatRate: this.params.heatRate,
+      sweetMin: this.params.sweetMin,
+      sweetMax: this.params.sweetMax,
+    });
+    this.bus.emit(Events.CookingProgress, {
+      heat: 0,
+      sweetMin: this.params.sweetMin,
+      sweetMax: this.params.sweetMax,
+      grade: 'raw',
+    });
   }
 
   /** 由 Ticker 每帧驱动（只做数值，不碰渲染）。 */
   update(dt: number): void {
     if (!this.cooking) return;
-    this.heat = Math.min(100, this.heat + this.heatRate * dt);
+
+    this.heat = Math.min(BURN_AT, this.heat + this.params.heatRate * dt);
+
+    const grade = gradeOf(this.heat, this.params.sweetMin, this.params.sweetMax);
     const h = Math.floor(this.heat);
-    if (h !== this.lastHeatInt) {
+    // 整数变化 或 档位跨越时才广播（档位跨越必须报，否则 UI 提示会延迟）
+    if (h !== this.lastHeatInt || grade !== this.lastGrade) {
       this.lastHeatInt = h;
+      this.lastGrade = grade;
       this.bus.emit(Events.CookingProgress, {
         heat: this.heat,
-        sweetMin: this.sweetMin,
-        sweetMax: this.sweetMax,
+        sweetMin: this.params.sweetMin,
+        sweetMax: this.params.sweetMax,
+        grade,
       });
     }
-    if (this.heat >= 100) this.burn('火太大，糊锅了');
+
+    // 火候烧穿 → 自动焦糊（玩家没点锅，属于事故）
+    if (this.heat >= BURN_AT) this.finish(false);
   }
 
-  private tryServe(): void {
+  /** 玩家点锅 = 主动出锅（可能是生食/完美/过火，也可能在临界帧被判成焦糊）。 */
+  private serve(): void {
     if (!this.cooking) return;
-    const h = this.heat;
-    this.cooking = false;
-    this.heat = 0;
-
-    const perfect = h >= this.sweetMin && h <= this.sweetMax;
-    if (perfect) {
-      this.combo += 1;
-      const coins = 20 + this.combo * 5; // 连击加成
-      this.coins += coins;
-      this.bus.emit(Events.DishServed, { perfect: true, quality: 100, coins, combo: this.combo });
-      this.bus.emit(Events.ComboChanged, { combo: this.combo });
-      this.bus.emit(Events.CoinEarned, { amount: coins, total: this.coins });
-    } else {
-      this.combo = 0;
-      const coins = 5;
-      this.coins += coins;
-      this.bus.emit(Events.DishServed, {
-        perfect: false,
-        quality: h < this.sweetMin ? 45 : 60,
-        coins,
-        combo: 0,
-      });
-      this.bus.emit(Events.ComboChanged, { combo: 0 });
-      this.bus.emit(Events.CoinEarned, { amount: coins, total: this.coins });
-    }
+    this.finish(true);
   }
 
-  private burn(reason: string): void {
-    if (!this.cooking) return;
+  /**
+   * 唯一出餐出口：判定档位 → 算质量 → 广播 dish:cooked。
+   * 注意这里不产生任何金币，金币归 DayController。
+   */
+  private finish(byPlayer: boolean): void {
+    const grade = gradeOf(this.heat, this.params.sweetMin, this.params.sweetMax);
+    const quality = qualityOf(grade, this.heat, this.params.sweetMin, this.params.sweetMax);
+    const heat = this.heat;
+
     this.cooking = false;
     this.heat = 0;
-    this.combo = 0;
-    this.bus.emit(Events.DishBurnt, { reason });
-    this.bus.emit(Events.ComboChanged, { combo: 0 });
+    this.lastHeatInt = -1;
+    this.lastGrade = 'raw';
+
+    this.bus.emit(Events.DishCooked, {
+      dish: this.params.dish,
+      ingredientId: this.params.ingredientId,
+      grade,
+      quality,
+      heat,
+      byPlayer,
+    });
   }
 }

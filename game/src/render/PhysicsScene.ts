@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { ObjectPool } from './ObjectPool';
+import { ObjectPool } from '../core/ObjectPool';
 import { ParticleSystem } from './ParticleSystem';
 import type { Ticker } from '../core/Ticker';
 import type { EventBus } from '../core/EventBus';
 import { Events } from '../game/events';
 import type { GameEvents } from '../game/events';
+import type { Grade } from '../game/config';
 
 /** 一个土豆（完整或碎块）：可视化网格 + 物理刚体。 */
 interface Potato {
@@ -121,8 +122,7 @@ export class PhysicsScene {
       this.contents.visible = true;
     });
     this.bus.on(Events.CookingProgress, ({ heat }) => this.applyHeat(heat));
-    this.bus.on(Events.DishServed, ({ perfect }) => this.onServed(perfect));
-    this.bus.on(Events.DishBurnt, () => this.onBurnt());
+    this.bus.on(Events.DishCooked, ({ grade }) => this.onCooked(grade));
 
     canvas.addEventListener('pointerdown', this.onPointerDown);
     ticker.add((dt) => this.update(dt));
@@ -200,22 +200,34 @@ export class PhysicsScene {
       .lerp(this.burntColor, t);
   }
 
-  private onServed(perfect: boolean): void {
-    this.contents.visible = false;
-    this.potMat.color.copy(this.basePotColor);
-    (this.contents.material as THREE.MeshStandardMaterial).color.copy(this.baseFoodColor);
+  /** 出餐表现：只为四个档位播放不同视觉，不参与任何判定（判定在 CookingSystem）。 */
+  private onCooked(grade: Grade): void {
     const p = new THREE.Vector3(0, 2.2, 0);
-    this.goldFx.burst(p, perfect ? 60 : 20);
-    this.particles.burst(p, 20);
-    this.refill(); // 补一个新土豆，保证循环不断
-  }
+    const foodMat = this.contents.material as THREE.MeshStandardMaterial;
 
-  private onBurnt(): void {
-    (this.contents.material as THREE.MeshStandardMaterial).color.copy(this.burntColor);
+    switch (grade) {
+      case 'perfect': // 完美：金光大作
+        this.goldFx.burst(p, 60);
+        this.particles.burst(p, 20);
+        break;
+      case 'raw': // 生食：几乎没有光，冷冷清清
+        this.goldFx.burst(p, 12);
+        this.particles.burst(p, 20);
+        break;
+      case 'over': // 过火：冒点烟，颜色发暗
+        this.smokeFx.burst(p, 30);
+        this.particles.burst(p, 10);
+        break;
+      case 'burnt': // 焦糊：浓烟 + 锅底发黑
+        this.smokeFx.burst(new THREE.Vector3(0, 2.4, 0), 60);
+        this.potMat.color.copy(this.burntColor);
+        break;
+    }
+
     this.contents.visible = false;
-    this.smokeFx.burst(new THREE.Vector3(0, 2.4, 0), 60);
-    this.potMat.color.copy(this.burntColor);
-    this.refill();
+    foodMat.color.copy(this.baseFoodColor);
+    if (grade === 'perfect' || grade === 'raw') this.potMat.color.copy(this.basePotColor);
+    this.refill(); // 补一个新土豆，保证循环不断
   }
 
   /** 在锅旁补一个新的完整土豆。 */

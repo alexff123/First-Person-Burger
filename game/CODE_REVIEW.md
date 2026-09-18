@@ -131,3 +131,101 @@
 - dev 服务器：`cook.html` / `scene.html` / `index.html` / `src/cook-main.ts` 均 200。
 - WebGL/WebAudio 运行时需浏览器，无头不可自动验证。
 
+---
+
+# 代码审查 · 火候分档与风险收益经济（Phase 5）
+
+审查角色：代码审查专家 ｜ 依据：《性能红线与防卡顿规范》
+**本轮审查重点：事件总线契约 —— 档位与质量的传递、金币结算的唯一性、模块禁止互相直调。**
+
+## 结论：通过（PASS），本轮修掉 5 处真实问题
+
+---
+
+## 0. 核心审查项逐条核验
+
+### 0.1 `dish:cooked` 必须携带档位与质量参数
+
+| 要求 | 结果 | 证据 |
+| --- | --- | --- |
+| 携带火候档位 | 通过 | 载荷含 `grade: 'raw'\|'perfect'\|'over'\|'burnt'`（`events.ts:64-77`），由 `CookingSystem.finish()` 经 `gradeOf()` 判定后填入 |
+| 携带质量参数 | 通过 | 载荷含 `quality`（`qualityOf()` 计算）与原始 `heat` |
+| 携带食材标识 | 通过（额外） | 载荷含 `ingredientId`：以"这一锅实际用的食材"为准，避免烹饪中切食材造成账目错配 |
+| 四档位走同一出口 | 通过 | 生食/完美/过火（玩家点锅）与焦糊（烧穿自动）**全部**经 `finish()` 发 `dish:cooked`，用 `byPlayer` 区分触发方 |
+| 档位判定唯一入口 | 通过 | 全 `src/` 内火候区间比较只出现在 `config.ts → gradeOf()`；其余模块一律读 `grade` 字段 |
+| 运行期断言 | 通过 | 冒烟测试 §8 校验三个字段存在，且 `coin:earned` 次数 == 出餐次数 |
+
+### 0.2 金币必须由 DayController 统一结算
+
+| 要求 | 结果 | 证据 |
+| --- | --- | --- |
+| `CookingSystem` 不算钱 | 通过 | 该文件内零 `coin` / `combo` / `price` 标识符，只发 `dish:cooked` |
+| 结算唯一调用点 | 通过 | 全 `src/` 内 `economy.settle()` 仅一处：`DayController.ts:45` |
+| 金币事件唯一发出点 | 通过 | `emit(Events.CoinEarned)` 仅 `DayController.ts:52` 一处 |
+| 连击事件唯一发出点 | 通过 | `emit(Events.ComboChanged)` 仅 `DayController.ts:47` 一处 |
+| `EconomySystem` 不广播 | 通过 | 该类**零事件总线依赖**（不 import EventBus），是纯计算器，仅被 DayController 持有 |
+| 金币与成本解耦 | 通过 | 成本在 `EconomySystem` 内扣除；`PhysicsScene`/`Hud`/`Juice`/`AudioManager` 均无金钱计算 |
+
+> **注**：`DemoDriver.ts` 也会发 `dish:cooked` / `customer:angry`，但它是**灰盒模拟器**（仅挂在 `index.html` 的逻辑调试页），
+> 不属于 `cook.html` 的真实链路，且**不发任何金币事件**。已在文件头注明其非生产用途。
+
+### 0.3 禁止模块间直接互相调用
+
+| 层 | 允许依赖 | 实测违规 |
+| --- | --- | --- |
+| `render/PhysicsScene` | three / cannon / core / events / config | 无 |
+| `game/CookingSystem` | core / events / config | 无（**不知道 EconomySystem 存在**） |
+| `game/EconomySystem` | config 只有 | 无（连 EventBus 都不 import） |
+| `game/DayController` | core / events / config / EconomySystem | 无（唯一允许持有 EconomySystem 的模块） |
+| `ui/` `audio/` | core / events / config | 无 |
+
+数据流单向：**物理意图 → 玩法判定 → 中枢结算 → 结果事件 → 表现层**。任何一环都不反向调用。
+
+---
+
+## 1. 本轮修掉的 5 处真实问题
+
+| # | 问题 | 发现方式 | 修复 |
+| --- | --- | --- | --- |
+| 1 | `Juice` 从 `dish:cooked` 解构 `combo`，但该字段**不存在** | `tsc` 编译期报错 | 震动改由 `combo:changed` **单一事件**驱动（该事件每次出餐必发且携带 combo/倍率/断档）。顺带**消除了一处跨事件到达顺序的隐式耦合** |
+| 2 | `Hud` 声明 `combo` / `multiplier` 字段却从不读取 | `noUnusedLocals` 编译期报错 | 删除死字段 |
+| 3 | 灰盒 `main.ts` / `DemoDriver.ts` 仍用旧契约（`orderId` / `customerId`） | 全量类型检查 | 升级到新契约；`DemoDriver` 现在走真实 `gradeOf`/`qualityOf`/`resolveCookParams` 链路，四个档位都可能产出 |
+| 4 | `ObjectPool` 是纯工具类却放在 `render/`，导致 `ui/`、`audio/` 反向依赖"渲染层" | 依赖面 grep | 迁到 `core/ObjectPool.ts`，更新 3 处 import，删除旧文件 |
+| 5 | 冒烟测试自身的 `runTo(100)` 永远跑不到（烧穿后火候被复位为 0） | 测试首跑超时抛错 | 改为"出餐即返回"，并用 `isCooking` 判据 |
+
+> 第 4 条是本轮唯一的结构性改进：它把四层架构图里一条不该存在的边（UI → 渲染层）剪掉了。
+> 前三层依赖方向现已完全干净，架构图与实际代码一一对应。
+
+---
+
+## 2. 红线核对（本阶段适用项）
+
+| 红线 | 结果 | 说明 |
+| --- | --- | --- |
+| 固定步长 + rAF 单循环 | 通过 | 火候与物理共享同一 `Ticker`，物理固定 1/60 |
+| 禁止 setInterval 跑游戏循环 | 通过 | 循环全走 `Ticker`；`setTimeout` 仅用于 HUD 文案复位（非循环） |
+| 热路径禁止 new 对象 | 通过 | 火候事件**按整数变化节流**（≤100 次/锅）；`combo:changed` / `coin:earned` 每锅各 1 条；`Ticker` 回调零分配 |
+| 对象池化 | 通过 | 土豆 8 / 碎块 48 / 粒子 300+200+200 / 金币 DOM 24 / 音频通道 12 |
+| 粒子 InstancedMesh | 通过 | 3 个 InstancedMesh，共 3 次提交 |
+| 禁止未释放资源 | 通过 | 碎块 4s 回收；`dispose()` 释放 renderer 与监听；DTO 均为短命对象（每锅 1 次，非每帧） |
+| 事件总量可控 | 通过 | 每锅固定：`cooking:progress` ≤100 + `dish:cooked` + `combo:changed` + `coin:earned`（+焦糊时 `customer:angry`） |
+
+---
+
+## 3. 跟进项
+
+1. `PhysicsScene` 订阅 `cooking:*` 与 `dish:cooked` 做视觉，属"视图响应领域事件"，与"状态机操作网格"正交，符合约束。若视觉继续变厚，应抽出独立 `PotView`。
+2. 灶台升级在 `cooking` 阶段被拒（`DayController.upgradeStove`），HUD 也同步禁用按钮 —— **同一规则写了两处**。当前是可接受的冗余（UI 提示 + 逻辑兜底），但若规则再复杂，应改为广播 `stove:upgradeRejected` 事件。
+3. `three` 主包仍 553 kB（gzip 144 kB），`PhysicsScene` 独占。集成前按 `manualChunks` 拆分。
+4. `ui/Hud.ts` 自行由 `config` 推导展示用售价/成本，与 `EconomySystem` 读同一张表故不漂移；若未来售价受随机事件影响，HUD 必须改为读事件载荷。
+
+---
+
+## 4. 验证记录
+
+- `npm run build`：tsc 0 错误；三入口 `index/scene/cook` 打包成功（26 模块，Rollup 自动拆出 `config` / `events` / `BusinessDayMachine` 共享块）。
+- **无头冒烟测试**（`src/smoke-cook.ts` → tsc 编译 → node 执行，直接驱动真实链路）：**31 项断言全部通过（16 锅）**。
+  覆盖参数解算、连击递增与倍率封顶、烧穿焦糊、生食/过火账目、食材与灶台切换的甜区联动、事件契约合规。
+- 重构后（`ObjectPool` 迁移）重跑：构建 exit 0、冒烟测试 31/31 通过。
+- WebGL/WebAudio 运行时需浏览器，无头不可自动验证；已用 dev 服务器确认页面与模块均 200。
+

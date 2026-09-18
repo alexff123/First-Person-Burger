@@ -2,6 +2,7 @@
 dist/
 .workbuddy/
 *.log
+_smoke/
 _probe/
 probe*.log
 calc.log

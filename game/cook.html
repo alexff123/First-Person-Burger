@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>3D 烹饪循环 · 火候与 Juice</title>
+    <title>3D 烹饪循环 · 火候分档与风险收益</title>
   </head>
   <body>
     <div id="stage">
@@ -20,23 +20,44 @@
       <div id="orders">
         <div class="order-card">
           <div class="order-title">当前订单</div>
-          <div class="order-dish" id="order-dish">土豆片 ×1</div>
-          <div class="order-status" id="order-status">待制作</div>
+          <div class="order-dish" id="order-dish">待制作</div>
+          <div class="order-status" id="order-status">待出锅</div>
         </div>
       </div>
 
+      <!-- 经营面板：售价/成本/灶台决定这一锅值多少 -->
+      <div id="hud-econ">
+        <div class="econ-row"><span class="econ-k">灶台</span><span id="econ-stove">家用灶 Lv1</span></div>
+        <div class="econ-row"><span class="econ-k">食材</span><span id="econ-ing">土豆</span></div>
+        <div class="econ-row"><span class="econ-k">售价</span><span id="econ-price">30</span></div>
+        <div class="econ-row"><span class="econ-k">成本</span><span id="econ-cost">8</span></div>
+      </div>
+
       <!-- 火候条 -->
+      <div id="grade-tag" class="grade-tag"></div>
       <div id="heatbar">
         <div id="sweet-zone"></div>
         <div id="heat-fill"></div>
         <div id="heat-label">火候 <span id="heat-num">0</span>%</div>
       </div>
 
+      <!-- 经营操作 -->
+      <div id="hud-actions">
+        <button id="btn-stove" class="hud-btn sm">升级灶台</button>
+        <div id="ing-switch">
+          <button class="hud-btn sm ing" data-ing="potato">土豆</button>
+          <button class="hud-btn sm ing" data-ing="tofu">豆腐</button>
+          <button class="hud-btn sm ing" data-ing="wagyu">和牛</button>
+        </div>
+      </div>
+
+      <div id="net-pop"></div>
       <div id="vignette"></div>
+      <div id="redflash"></div>
       <div id="fx-layer"></div>
       <div id="combo-pop"></div>
 
-      <div class="hud-tip">点土豆 = 切片入锅 ｜ 火候进绿区时点锅 = 完美出锅</div>
+      <div class="hud-tip">点土豆 = 切片入锅 ｜ 火候进甜区点锅 = 完美＋连击 ｜ 烧穿 = 焦糊赔钱</div>
       <button id="btn-endday" class="hud-btn">打烊 → 次日</button>
     </div>
     <script type="module" src="/src/cook-main.ts"></script>

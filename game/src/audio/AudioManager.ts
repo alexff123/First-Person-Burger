@@ -1,5 +1,5 @@
 import type { EventBus } from '../core/EventBus';
-import { ObjectPool } from '../render/ObjectPool';
+import { ObjectPool } from '../core/ObjectPool';
 import { Events } from '../game/events';
 import type { GameEvents } from '../game/events';
 
@@ -14,6 +14,10 @@ interface Voice {
  *   - 声音缓冲(AudioBuffer)预生成后缓存，按名字复用；
  *   - 播放通道(Voice=GainNode)用 ObjectPool 复用，并对并发发声数封顶，避免无界创建节点。
  * 注意：WebAudio 的 BufferSource 是一次性的，无法重复播放；因此池化的是"通道"，源节点用完即回收。
+ *
+ * 档位映射（正反馈给上行乐音，负反馈给下行/噪声）：
+ *   完美 → serve（双音上行）｜ 生食/过火 → soft（单音闷）｜ 焦糊 → burn（锯齿低鸣）
+ *   断连 → break（下行双音，专门为"痛感"配的）
  */
 export class AudioManager {
   private ctx?: AudioContext;
@@ -39,9 +43,17 @@ export class AudioManager {
     window.addEventListener('pointerdown', unlock);
 
     bus.on(Events.DishPrepared, () => this.play('chop'));
-    bus.on(Events.DishServed, ({ perfect }) => this.play(perfect ? 'serve' : 'soft'));
-    bus.on(Events.DishBurnt, () => this.play('burn'));
-    bus.on(Events.CoinEarned, () => this.play('coin'));
+    bus.on(Events.DishCooked, ({ grade }) => {
+      if (grade === 'perfect') this.play('serve');
+      else if (grade === 'burnt') this.play('burn');
+      else this.play('soft');
+    });
+    bus.on(Events.ComboChanged, ({ broke }) => {
+      if (broke) this.play('break');
+    });
+    bus.on(Events.CoinEarned, ({ net }) => {
+      if (net > 0) this.play('coin');
+    });
   }
 
   private init(): void {
@@ -54,7 +66,8 @@ export class AudioManager {
 
     this.buffers.set('chop', this.makeNoise(0.08, 0.9)); // 切菜：短噪声
     this.buffers.set('serve', this.makeTones([660, 990], 0.18, 0.4)); // 上菜成功：上行乐音
-    this.buffers.set('soft', this.makeTones([330], 0.14, 0.3)); // 普通出餐
+    this.buffers.set('soft', this.makeTones([330], 0.14, 0.3)); // 生食/过火：闷音
+    this.buffers.set('break', this.makeTones([420, 240], 0.2, 0.34)); // 连击断档：下行双音
     this.buffers.set('coin', this.makeTones([1320, 1760], 0.09, 0.3)); // 金币
     this.buffers.set('burn', this.makeBuzz(0.35, 0.45)); // 焦糊：低鸣 + 噪声
   }

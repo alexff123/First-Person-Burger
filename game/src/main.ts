@@ -9,6 +9,7 @@ import { BusinessDayMachine } from './game/BusinessDayMachine';
 import { DemoDriver } from './game/DemoDriver';
 import { Events } from './game/events';
 import type { GameEvents } from './game/events';
+import { GRADE_LABEL } from './game/config';
 
 // ---- 极简日志：同时打到控制台与屏幕面板，满足「可追踪、可调试」 ----
 const logEl = document.getElementById('log') as HTMLDivElement;
@@ -39,13 +40,13 @@ bus.on(Events.DayEnd, ({ day, profit }) => uiLog(`🌙 第 ${day} 天打烊，�
 
 // ---- 示例订阅者：模拟「顾客AI监控模块」，仅监听 customer:angry ----
 // 证明未来模块无需知道是谁、为何触发，只管响应事件。
-bus.on(Events.CustomerAngry, ({ customerId, reason }) => {
-  uiLog(`🤬 顾客 ${customerId} 暴走：${reason}`);
+bus.on(Events.CustomerAngry, ({ reason, grade }) => {
+  uiLog(`🤬 顾客暴走（${GRADE_LABEL[grade]}）：${reason}`);
 });
 
-// ---- 示例订阅者：模拟「经济模块」，监听出餐计算收入 ----
-bus.on(Events.DishCooked, ({ orderId, quality }) => {
-  uiLog(`🍽️ ${orderId} 出餐，品质 ${quality}`);
+// ---- 示例订阅者：模拟「经济模块」，监听出餐档位与质量 ----
+bus.on(Events.DishCooked, ({ dish, grade, quality }) => {
+  uiLog(`🍽️ ${dish} 出锅：${GRADE_LABEL[grade]}，品质 ${quality}`);
 });
 
 // ---- UI 交互 ----

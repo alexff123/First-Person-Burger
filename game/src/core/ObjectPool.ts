@@ -1,6 +1,9 @@
 /**
  * 通用对象池（Object Pool）
  * 预先创建、复用对象，避免运行时频繁 new / GC，满足性能红线「对象池化」要求。
+ *
+ * 归属说明：本类是**与渲染无关的纯工具**（零 three/cannon 依赖），因此放在 core/ 而不是 render/。
+ * 放在 render/ 会让 ui/、audio/ 反向依赖"渲染层"，破坏四层架构的单向依赖。
  */
 export class ObjectPool<T> {
   private readonly free: T[] = [];

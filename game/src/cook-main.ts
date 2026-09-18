@@ -1,7 +1,10 @@
 /**
- * 烹饪循环入口（cook-main.ts）—— 第三阶段整合 Demo
- * 装配：事件总线 + 统一 Ticker + 物理场景 + 烹饪系统 + 营业日状态机 + HUD + Juice + 音效。
- * 所有模块仅通过事件总线通信：物理层发意图，玩法系统算结果，HUD/音效/特效只是订阅者。
+ * 烹饪循环入口（cook-main.ts）—— 第四阶段整合 Demo
+ * 装配：事件总线 + 统一 Ticker + 物理场景 + 烹饪系统 + 经济系统 + 营业日状态机 + HUD + Juice + 音效。
+ *
+ * 依赖方向（严格单向，禁止回头）：
+ *   物理层发意图 → CookingSystem 判档位 → DayController 统一结算（EconomySystem 只算不广播）
+ *   → 结果事件 → HUD / Juice / 音频 / 物理场景 只负责表现。
  */
 import './style.css';
 import { EventBus } from './core/EventBus';
