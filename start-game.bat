@@ -22,7 +22,7 @@ title Cooking Game Launcher
 ::      Fixed: every exit path ends with pause, and the whole run is
 ::      written to game\launcher.log
 ::
-::  Self-test hook:  start-game.bat probe 5173   -> prints ALIVE=0/1
+::  Self-test hook:  start-game.bat probe 5173   (prints ALIVE=0/1)
 :: ============================================================
 
 set "PROJECT_ROOT=C:\Users\13916\Documents\work buddy\2026-09-18-19-45-04"
@@ -84,7 +84,7 @@ call :say "[env] curl usable  : !HAS_CURL!"
 call :say ""
 
 call :probe 5173
-call :say "[probe] port 5173 -> ALIVE=!ALIVE!"
+call :say "[probe] port 5173 : ALIVE=!ALIVE!"
 if "!ALIVE!"=="1" (
   call :say "[1/3] port 5173 already answering - reusing it."
   goto :open
@@ -154,7 +154,7 @@ pause
 exit /b 1
 
 :probe
-:: probe ^<port^>  ->  ALIVE=1 when that port really serves cook.html
+:: probe PORT  :  sets ALIVE=1 when that port really serves cook.html
 ::
 :: --noproxy "*" forces a direct connection (a proxy would answer 502 and
 :: curl would still report success). -f turns HTTP 4xx/5xx into a non-zero
@@ -173,8 +173,13 @@ if not errorlevel 1 set "ALIVE=1"
 exit /b 0
 
 :say
-:: print to both the console and the log file
-:: (a bare "echo" would print the ECHO status, hence the explicit echo.)
+:: Print to both the console and the log file.
+::
+:: NEVER pass a message containing the characters  >  <  |  &
+:: :say strips the surrounding quotes and echoes the text unquoted, so cmd
+:: would treat such a character as redirection. That once turned the probe
+:: line "[probe] port 5173 - ALIVE=1" into a stray file named ALIVE and
+:: silently swallowed the log entry.
 if "%~1"=="" (
   echo.
   >>"!GAME_DIR!\launcher.log" echo.
