@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 dist/
 .workbuddy/
 *.log
@@ -33,3 +33,5 @@ smoke*.mjs
 # 它驱动真实事件链路（EventBus + 状态机 + CookingSystem + DayController + EconomySystem + MarketSystem）
 # 做断言，不是一次性脚本 —— 丢了就等于失去了唯一的自动化回归防线。
 !/game/src/smoke-cook.ts
+
+vite.config.ts.timestamp-*
