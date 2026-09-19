@@ -5,6 +5,25 @@
 
 ## 运行
 
+**方式一（推荐）：双击启动器**
+
+项目根目录的 `start-game.bat`（桌面上另有一份副本）。它会自动：
+
+1. 定位 game 目录（优先用脚本所在目录，失败则回退到写死的项目根）
+2. 探测 Node 运行时 —— 优先用 managed Node，找不到才回退系统 npm
+3. 若 `node_modules` 缺失，先跑 `npm install`
+4. 在**独立窗口** `CookingGame-DevServer` 里起 Vite（该窗口独立于任何宿主进程，不会被回收）
+5. 轮询直到服务器真的响应（curl 探 `cook.html`；5173 被占则自动识别 5174）
+6. 自动打开浏览器到 `cook.html`，启动器自身随即退出
+
+> ⚠️ 关键设计：**用 `start` 开独立窗口，而不是让启动器自己占用前台**。
+> 若由某个宿主进程（IDE 终端、Agent 后台任务）代跑 `npm run dev`，
+> 宿主一退出，服务器就随进程树被一起回收，浏览器随即报 `ERR_CONNECTION_REFUSED`。
+>
+> 停止服务器：关掉标题为 `CookingGame-DevServer` 的那个窗口即可。
+
+**方式二：手动**
+
 ```bash
 npm install
 npm run dev
