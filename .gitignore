@@ -35,3 +35,5 @@ smoke*.mjs
 !/game/src/smoke-cook.ts
 
 vite.config.ts.timestamp-*
+
+launcher.log
