@@ -195,3 +195,54 @@ html, body { height: 100%; }
 .order-status.raw { background: #dfe6e9; color: #4a5a60; }
 .order-status.over { background: #ffe6c2; color: #a05a00; }
 .order-status.burnt { background: #ffd0d0; color: #b00020; }
+
+/* ---- 第五阶段：采购 / 进货界面 ---- */
+#shop {
+  position: fixed; left: 196px; top: 84px; z-index: 7;
+  width: 300px; background: rgba(255, 255, 255, 0.95);
+  border: 3px solid var(--brown); border-radius: 16px; padding: 12px;
+  box-shadow: 0 6px 0 rgba(74, 53, 40, 0.22);
+}
+#shop.hidden { display: none; }
+.shop-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px dashed #e3d6c3;
+}
+.shop-title { font-weight: 800; font-size: 15px; }
+.shop-day { font-size: 12px; opacity: 0.6; }
+
+.shop-list { display: flex; flex-direction: column; gap: 6px; }
+.shop-row {
+  display: grid; grid-template-columns: 1fr auto auto; align-items: center;
+  gap: 8px; padding: 6px 8px; border-radius: 10px;
+  background: #fdf8f0; border: 2px solid transparent;
+}
+/* 当前主推食材高亮（决定下一锅做什么） */
+.shop-row.on { border-color: var(--orange); background: #fff3e3; }
+.shop-row.sold-out { opacity: 0.62; }
+.shop-name { font-weight: 700; font-size: 14px; cursor: pointer; }
+.shop-price { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.shop-delta { font-size: 11px; font-style: normal; margin-left: 3px; }
+.shop-delta.up { color: #d0021b; }    /* 涨价：红 */
+.shop-delta.down { color: #1a7f37; }  /* 降价：绿 */
+.shop-stock { font-size: 12px; opacity: 0.75; min-width: 34px; text-align: right; }
+.shop-btns { display: flex; gap: 4px; grid-column: 1 / -1; justify-content: flex-end; }
+.shop-buy {
+  font: 700 12px/1 'Baloo 2', system-ui; cursor: pointer;
+  background: var(--mint); color: #fff; border: 2px solid var(--brown);
+  border-radius: 8px; padding: 4px 9px;
+}
+.shop-buy:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.shop-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 10px; padding-top: 8px; border-top: 2px dashed #e3d6c3;
+}
+.shop-total { font-size: 13px; }
+.shop-msg {
+  margin-top: 6px; font-size: 12px; font-weight: 700; min-height: 16px;
+  color: #1a7f37;
+}
+.shop-msg.err { color: #b00020; }
+/* 破产保护提示：需要比普通错误更显眼 */
+.shop-msg.rescue { color: #a05a00; background: #fff3d6; border-radius: 8px; padding: 4px 8px; }

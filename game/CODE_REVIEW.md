@@ -229,3 +229,66 @@
 - 重构后（`ObjectPool` 迁移）重跑：构建 exit 0、冒烟测试 31/31 通过。
 - WebGL/WebAudio 运行时需浏览器，无头不可自动验证；已用 dev 服务器确认页面与模块均 200。
 
+---
+---
+
+# 第六轮审查 · 采购阶段与价格波动（Phase 6）
+
+审查对象：`MarketSystem.ts`（新增）、`DayController.ts`（重写）、`EconomySystem.ts`、`CookingSystem.ts`、
+`events.ts`、`Hud.ts`、`cook-main.ts`、`cook.html`、`style.css`、`config.ts`、`ObjectPool.ts`、`ParticleSystem.ts`、`PhysicsScene.ts`
+
+## 1. 审查项逐条核验
+
+| # | 审查要求 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| 1 | **采购状态机与烹饪状态机的切换正确**，且不越权 | 通过 | `DayController.finishProcurement()` 要求 `totalStock > 0` 才 `advanceTo('cooking')`；`onPotatoInPot()` 要求 `day.current === 'cooking'`。二者都只调用 `advanceTo`（非法转移返回 false 并静默忽略），不直接改 FSM 内部状态 |
+| 2 | **事件总线不出现死循环** | 通过 | 逐条核验 5 条事件链，深度均 ≤ 1（详见 `docs/06 §7`）；冒烟测试第 12 节断言"一次收尾恰好推进 4 个阶段且序列固定"，把它钉死 |
+| 3 | 金币只能由 `DayController` 结算 | 通过 | `grep` 全项目：`emit(Events.CoinEarned` 仅出现在 `DayController`（3 处，行 151/234/261），订阅方只有 HUD / Juice / 音频；`EconomySystem` 的 `coins` 字段为 `private`，外部只能经 `settle`/`spend`/`earn` |
+| 4 | `MarketSystem` 不得依赖事件总线 | 通过 | 该文件 import 列表仅 `./config` 两条，零 `EventBus` 引用 —— 与 `EconomySystem` 同源设计 |
+| 5 | 采购阶段点 3D 食材不得顶掉进货界面 | 通过 | 双闸门：`CookingSystem.inCookingPhase` + `DayController.onPotatoInPot` 的阶段判断 |
+| 6 | 余额不得为负 | 通过 | `EconomySystem.spend()` 不足即拒绝（`cost > coins` 返回 false）；`MarketSystem.buy()` 先按余额算可买份数，双重保护 |
+| 7 | 采购失败必须回滚库存 | 通过 | `DayController.buy()`：若 `spend()` 意外失败，回滚 `stock -= r.qty` 并发失败回执 |
+
+## 2. 本轮修掉的问题
+
+| # | 问题 | 发现方式 | 修复 |
+| --- | --- | --- | --- |
+| 1 | **装配顺序错误**：`Hud` 在 `DayController` 之后创建 | 代码走查（`DayController` 构造即 `start()`） | `cook-main.ts` 重排：表现层先订阅，中枢最后创建。否则 HUD 漏掉开局 `market:open`，货架要等到第二天 |
+| 2 | `settle()` 用 `config` 基准成本，采购阶段形同虚设 | 设计走查 | 新增 `unitCost` 入参，由 `DayController` 传当日买进价 |
+| 3 | `DayController.currentIngredientId` 字段只写不读 | `noUnusedLocals` 报错 | 删除（结算本来就用 `payload.ingredientId`，该字段是多余状态） |
+| 4 | `Hud.buildShop()` 解构的 `q` 未使用 | `noUnusedLocals` 报错 | 改为遍历 `this.quotes.keys()` |
+| 5 | 进货/升灶扣款也弹结算浮字（"收入 0 成本 -120"） | 自测发现 | HUD 用 `revenue > 0 \|\| penalty > 0` 区分是否真正的出餐结算 |
+| 6 | 冒烟测试把"烹饪中升灶台被拒"当失败 | 测试跑出 2 项 FAIL | 这是**正确行为**，改为正向断言并补测"收尾后采购阶段可升级" |
+
+> 第 1 条是坑最深的一条：它不会报错、不会崩溃，只是"开局少一个面板"，
+> 靠类型系统和冒烟测试都抓不到，只能靠走查构造函数的副作用时序。
+
+## 3. 红线核对（本阶段适用项）
+
+| 红线 | 结果 | 说明 |
+| --- | --- | --- |
+| 固定步长 + rAF 单循环 | 通过 | 未引入任何新的定时器；价格刷新由状态机转移触发，非轮询 |
+| 热路径禁止 new 对象 | 通过 | `MarketSystem.rollPrices()` 每日 1 次（3 个对象）；`list()` 每次开市 1 次；均不在帧循环内 |
+| DOM 不重建 | 通过 | 货架行 `buildShop()` 只建一次，价格/库存走原地文本更新（避免每次开市重建 9 个节点） |
+| 对象池化 | 通过 | `ObjectPool` 新增 `drain()`，用于换食材时批量回收并 `dispose()`，**不泄漏 GPU 资源** |
+| 事件总量可控 | 通过 | 每锅新增 1 条 `stock:changed`；开市一次性 ≤ 2N+2 条（N=3 食材） |
+| 禁止模块间直接互相调用 | 通过 | 依赖方向仍为单向：表现层 → 事件 → DayController → 计算器。`MarketSystem` / `EconomySystem` 互相不引用，也不引用 `DayController` |
+
+## 4. 跟进项
+
+1. ~~`MarketSystem` 内部用 `INGREDIENTS.reduce(...)` 求"最便宜食材"，在 3 处各算一遍~~ → **本轮已修**：抽出私有 `cheapest()`。
+2. `DayController` 承担了"采购裁决 + 出餐结算 + 灶台升级 + 破产检查"四件事，已接近职责上限。若再加"员工雇佣"，应拆出 `ProcurementController`。
+3. `Hud` 与 `DayController` 各写一遍"烹饪中不可升灶台"，仍为刻意冗余（防呆）。已确认保留。
+4. 库存无上限（`MAX_STOCK_PER_ITEM` 预留未用），也无保质期 —— 囤货无风险，削弱了"低买高卖"的张力。
+5. `coin:earned` 一事件三用（出餐/采购/升级），靠 `revenue/penalty` 为 0 区分。若将来再加用途，应考虑拆分为 `coin:spent`。
+
+## 5. 验证记录
+
+- `npm run build`：tsc 0 错误；三入口打包成功（**27 模块**，新增 `MarketSystem` 并入 `cook` 块）。
+- **无头冒烟测试**：**83 项断言全部通过（16 锅 / 20 笔资金流水），exit 0**，覆盖 15 节（含价格浮动上下限、采购成本对利润的影响、破产保护、事件总线无死循环）。
+- 数值对账：`docs/06` 第 3 节的区间/净利/罚金/成本占比/可买份数**由脚本从编译产物 `config.js` 导出**，与文档逐项一致。
+- 未能自动验证：WebGL 渲染、WebAudio 音效（浏览器运行时），本轮未改动其逻辑。
+
+**结论：PASS。** 采购与烹饪的切换由"业务前置条件"驱动而非"时间到"，越权路径已被双闸门封死；
+金币出口仍唯一；事件总线经逐链核验无环，并有断言钉死。
+

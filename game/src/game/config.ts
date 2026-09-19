@@ -24,6 +24,29 @@ export const MULTIPLIER_CAP = 10;
 /** 开局资金（够亏几次，逼玩家尽快学会看火） */
 export const START_COINS = 60;
 
+/* ============================ 采购阶段 ============================ */
+
+/** 每日价格浮动幅度（±20%）：今天豆腐贵了，就少买点、换个菜谱 */
+export const PRICE_SWING = 0.2;
+
+/** 每日可供采购的食材种类上限（灰盒阶段不做货架容量） */
+export const MAX_STOCK_PER_ITEM = 99;
+
+/** 单种食材一次进货的最大份数（防手滑一次买空） */
+export const MAX_BUY_BATCH = 20;
+
+/**
+ * 破产保护阈值：资金低于此值时触发保护。
+ * 设计意图：不让玩家卡死在"没钱买料 → 无法开工 → 永远没钱"的死循环里。
+ */
+export const BANKRUPTCY_FLOOR = 0;
+
+/**
+ * 破产救济：触发保护时免费发放的土豆份数。
+ * 只发最便宜的料 —— 救济是"让你能继续玩"，不是"奖励破产"。
+ */
+export const BANKRUPTCY_RESCUE = 3;
+
 /** 各档位收入 / 罚金系数（乘在"售价"上） */
 export const RAW_REVENUE_MUL = 0.2; // 生食：贱卖
 export const OVER_PENALTY_MUL = 0.5; // 过火：倒赔顾客

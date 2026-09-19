@@ -91,16 +91,32 @@ export class EconomySystem {
     this.ingredientId = id;
   }
 
+  /** 收款（采购退款 / 未来事件奖励等）。金币变动的唯一正规入口之一。 */
+  earn(amount: number): void {
+    this.coins += Math.max(0, Math.round(amount));
+  }
+
+  /** 付款。返回是否成功；不会让余额变负（不足则拒绝，由调用方处理）。 */
+  spend(amount: number): boolean {
+    const cost = Math.max(0, Math.round(amount));
+    if (cost > this.coins) return false;
+    this.coins -= cost;
+    return true;
+  }
+
   /**
    * 结算一锅。
    * @param grade 火候档位（由 CookingSystem 判定并随 dish:cooked 传来）
    * @param ingredientId 这一锅实际用的食材（以事件载荷为准，避免"烹饪中切了食材"造成账目错配）
+   * @param unitCost 这一锅**实际消耗的采购成本**（= 当日买进价）。
+   *        之所以由外部传入而不是内部查 config：因为成本绑在"你什么时候买的"上，
+   *        昨天囤的便宜货和今天追高买的贵料，做出来同一道菜利润不同 —— 这正是采购决策的意义。
    */
-  settle(grade: Grade, ingredientId: string): SettleResult {
+  settle(grade: Grade, ingredientId: string, unitCost?: number): SettleResult {
     this.ingredientId = ingredientId;
     const ing = getIngredient(ingredientId);
     const price = Math.round(ing.price * this.stove.priceMul);
-    const cost = ing.cost;
+    const cost = unitCost ?? ing.cost;
 
     let revenue = 0;
     let penalty = 0;

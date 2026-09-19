@@ -41,6 +41,20 @@
         <div id="heat-label">火候 <span id="heat-num">0</span>%</div>
       </div>
 
+      <!-- 进货界面（第五阶段）：只在采购阶段出现 -->
+      <div id="shop" class="hidden">
+        <div class="shop-head">
+          <span class="shop-title">今日进货</span>
+          <span class="shop-day" id="shop-day">第 1 天</span>
+        </div>
+        <div class="shop-list" id="shop-list"></div>
+        <div class="shop-foot">
+          <span class="shop-total">在库 <b id="shop-total">0</b> 份</span>
+          <button id="btn-open" class="hud-btn sm">开火营业 ▸</button>
+        </div>
+        <div class="shop-msg" id="shop-msg"></div>
+      </div>
+
       <!-- 经营操作 -->
       <div id="hud-actions">
         <button id="btn-stove" class="hud-btn sm">升级灶台</button>

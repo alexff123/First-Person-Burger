@@ -2,8 +2,12 @@
 dist/
 .workbuddy/
 *.log
+
+# ---- 临时产物（验证脚本的中间输出，一律不入库）----
 _smoke/
 _probe/
+/_*.txt
+/game/_*.txt
 probe*.log
 calc.log
 verify_build.log
@@ -11,8 +15,13 @@ tsc_files.log
 git_state.txt
 tree.txt
 env_check*.txt
+smoke_out.txt
+build_log.txt
+git_log*.txt
+health*.txt
+git_p*.txt
 
-# 临时冒烟脚本（早期探索产物，已被 src/smoke-cook.ts 取代）
+# ---- 临时冒烟脚本（早期探索产物，已被 src/smoke-cook.ts 取代）----
 /smoke.ts
 /smoke.mjs
 /game/smoke.ts
@@ -21,16 +30,6 @@ smoke*.ts
 smoke*.mjs
 
 # 例外：无头冒烟测试是"关键测试代码"，必须进 git。
-# 它驱动真实事件链路（EventBus + 状态机 + CookingSystem + DayController + EconomySystem）做断言，
-# 不是一次性脚本 —— 丢了就等于失去了唯一的自动化回归防线。
+# 它驱动真实事件链路（EventBus + 状态机 + CookingSystem + DayController + EconomySystem + MarketSystem）
+# 做断言，不是一次性脚本 —— 丢了就等于失去了唯一的自动化回归防线。
 !/game/src/smoke-cook.ts
-
-smoke_out.txt
-build_log.txt
-git_log*.txt
-health*.txt
-git_p*.txt
-_tc.txt
-_ls.txt
-_probe*.txt
-_git.txt

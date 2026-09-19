@@ -32,6 +32,19 @@ export const Events = {
   StoveUpgrade: 'stove:upgrade',
   StoveChanged: 'stove:changed',
   IngredientChanged: 'ingredient:changed',
+  // 采购阶段（第五阶段）
+  /** HUD 请求买入：载荷只有"买什么、买几份"，够不够钱由 DayController 裁决 */
+  MarketBuy: 'market:buy',
+  /** 开市：每日价格已掷好，广播全部行情（UI 据此渲染货架） */
+  MarketOpen: 'market:open',
+  /** 单笔成交回执（成功/失败都发，UI 才能给出反馈） */
+  MarketBought: 'market:bought',
+  /** 库存变化（买入 / 出餐消耗 / 救济），UI 统一在此刷新 */
+  StockChanged: 'stock:changed',
+  /** 破产保护触发 */
+  BankruptcyAverted: 'bankruptcy:averted',
+  /** 采购完成 → 请求进入烹饪阶段 */
+  ProcurementDone: 'procurement:done',
 } as const;
 
 /** 事件名 -> 载荷类型的映射，作为 EventBus 的泛型参数，保证 emit/on 类型安全。 */
@@ -77,4 +90,20 @@ export interface GameEvents {
   'stove:upgrade': Record<string, never>;
   'stove:changed': { level: number; name: string };
   'ingredient:changed': { id: string };
+  // 采购阶段（第五阶段）
+  'market:buy': { id: string; qty: number };
+  'market:open': {
+    day: number;
+    /** 今日行情快照，UI 直接渲染；price 已含浮动 */
+    quotes: { id: string; name: string; price: number; delta: number; stock: number }[];
+  };
+  'market:bought': { id: string; name: string; qty: number; spent: number; ok: boolean; reason?: string };
+  'stock:changed': {
+    id: string;
+    stock: number;
+    /** 全部库存合计（决定"还能不能再开一锅"） */
+    total: number;
+  };
+  'bankruptcy:averted': { ingredientName: string; granted: number };
+  'procurement:done': Record<string, never>;
 }

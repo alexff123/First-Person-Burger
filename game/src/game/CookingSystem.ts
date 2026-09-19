@@ -29,10 +29,20 @@ export class CookingSystem {
   /** 上次广播时的火候整数值，用于抑制重复事件（单锅最多 100 次） */
   private lastHeatInt = -1;
   private lastGrade: Grade = 'raw';
+  /**
+   * 阶段闸门：只有营业日进入"烹饪"阶段才允许开火。
+   * 为什么要它：采购阶段玩家可能在 3D 场景里随手点到食材，若无闸门就会
+   * 直接跳进烹饪、把进货界面顶掉 —— 属于"误触毁掉一轮决策"。
+   * 这里只订阅事件，不反向调用状态机，符合单向依赖。
+   */
+  private inCookingPhase = false;
 
   constructor(private readonly bus: EventBus<GameEvents>) {
     bus.on(Events.PotatoInPot, () => this.start());
     bus.on(Events.PotClicked, () => this.serve());
+    bus.on(Events.PhaseChanged, ({ to }) => {
+      this.inCookingPhase = to === 'cooking';
+    });
     // 食材 / 灶台切换只记录，下次入锅才生效（烹饪中换灶不符合直觉，直接排队到下一锅）
     bus.on(Events.StoveChanged, ({ level }) => {
       this.stoveLevel = level;
@@ -56,6 +66,8 @@ export class CookingSystem {
   }
 
   private start(): void {
+    // 阶段闸门：采购/定价/打烊阶段点食材不应开火
+    if (!this.inCookingPhase) return;
     // 入锅瞬间快照参数：本锅的速率与甜区就此锁定
     this.params = resolveCookParams(this.ingredientId, this.stoveLevel);
     this.cooking = true;
