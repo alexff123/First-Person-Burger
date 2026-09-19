@@ -37,3 +37,6 @@ smoke*.mjs
 vite.config.ts.timestamp-*
 
 launcher.log
+
+# machine-specific push helper (contains local PortableGit path)
+push-to-github.bat
